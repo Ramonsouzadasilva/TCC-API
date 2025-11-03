@@ -1,0 +1,114 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum TipoFuncionario {
+  GERENTE
+  DESENVOLVEDOR
+  ANALISTA
+  DESIGNER
+  OUTRO
+}
+
+enum UrlStatus {
+  PENDENTE
+  SUCESSO
+  ERRO
+}
+
+model Empresa {
+  id             String         @id @default(uuid())
+  nome           String
+  cnpj           String?        @unique
+  funcionarios   Funcionario[]
+  projetos       Projeto[]
+  metricas       Metrica[]
+  createdAt      DateTime       @default(now()) @map("criado_em")
+  updatedAt      DateTime       @updatedAt @map("atualizado_em")
+
+  @@map("empresas")
+}
+
+model Funcionario {
+  id           String                 @id @default(uuid())
+  nome         String
+  email        String                 @unique
+  senha        String                 // Added password field for authentication
+  cargo        String?
+  tipo         TipoFuncionario        @default(DESENVOLVEDOR) // Added employee type
+  empresaId    String                 @map("empresa_id")
+  empresa      Empresa                @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  projetos     ProjetoFuncionario[]
+  metricas     Metrica[]
+  createdAt    DateTime               @default(now()) @map("criado_em")
+  updatedAt    DateTime               @updatedAt @map("atualizado_em")
+
+  @@index([empresaId])
+  @@map("funcionarios")
+}
+
+model Projeto {
+  id           String                 @id @default(uuid())
+  nome         String
+  descricao    String?
+  empresaId    String                 @map("empresa_id")
+  empresa      Empresa                @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  funcionarios ProjetoFuncionario[]
+  urls         URL[]
+  metricas     Metrica[]
+  createdAt    DateTime               @default(now()) @map("criado_em")
+  updatedAt    DateTime               @updatedAt @map("atualizado_em")
+
+  @@index([empresaId])
+  @@map("projetos")
+}
+
+model ProjetoFuncionario {
+  id             String       @id @default(uuid())
+  projetoId      String       @map("projeto_id")
+  funcionarioId  String       @map("funcionario_id")
+  projeto        Projeto      @relation(fields: [projetoId], references: [id], onDelete: Cascade)
+  funcionario    Funcionario  @relation(fields: [funcionarioId], references: [id], onDelete: Cascade)
+
+  @@unique([projetoId, funcionarioId])
+  @@index([funcionarioId])
+  @@index([projetoId])
+  @@map("projetos_funcionarios")
+}
+
+model URL {
+  id           String      @id @default(uuid())
+  endereco     String
+  status       UrlStatus   @default(PENDENTE)
+  testadoEm    DateTime?   @map("testado_em")
+  erro         String?
+  projetoId    String      @map("projeto_id")
+  projeto      Projeto     @relation(fields: [projetoId], references: [id], onDelete: Cascade)
+
+  @@index([projetoId])
+  @@map("urls")
+}
+
+model Metrica {
+  id             String        @id @default(uuid())
+  tipo           String
+  sucessoCount   Int           @default(0) @map("sucesso_count")
+  erroCount      Int           @default(0) @map("erro_count")
+  dataReferencia DateTime      @default(now()) @map("data_referencia")
+  empresaId      String?       @map("empresa_id")
+  projetoId      String?       @map("projeto_id")
+  funcionarioId  String?       @map("funcionario_id")
+  empresa        Empresa?      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  projeto        Projeto?      @relation(fields: [projetoId], references: [id], onDelete: Cascade)
+  funcionario    Funcionario?  @relation(fields: [funcionarioId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId])
+  @@index([projetoId])
+  @@index([funcionarioId])
+  @@map("metricas")
+}
